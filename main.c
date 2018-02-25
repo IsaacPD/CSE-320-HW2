@@ -109,8 +109,8 @@ int main(int argc, char** argv) {
 		cursor += size;	//Next Packet
 	} while (id != 0);
 	cursor = ram;
-	printf("RAM\n------------\n");
-	printPackets(ram);
+	//printf("RAM\n------------\n");
+	//printPackets(ram);
 	
 	int f, prevMin = 0, min = INT_MAX;
 	void* currentMin = NULL;
@@ -156,13 +156,13 @@ int main(int argc, char** argv) {
 		PUT(bCursor, PACK(16, 0, 0));
 		PUT(bCursor+WSIZE, PACK(16, 0, 0));
 		coalesce(tmp_buf + 128);
-		printf("BUFFER\n-----------\n");
-		printPackets(tmp_buf + 128);
+		//printf("BUFFER\n-----------\n");
+		//printPackets(tmp_buf + 128);
 	}
 	
-	printf("RAMCOPY\n---------------\n");
+	//printf("RAMCOPY\n---------------\n");
 	copyPackets(tmp_buf + 128, ram);
-	printPackets(ram);
+	//printPackets(ram);
     /*
      * Do not modify code below.
      */
