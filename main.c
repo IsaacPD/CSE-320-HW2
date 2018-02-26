@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <unistd.h>
 #include "helper.h"
 #define WSIZE 8
 #define DSIZE 16
@@ -27,7 +28,6 @@ void coalesce(void* buffer){
 			prevA = (prevA || id != GET_ID(buffer - WSIZE)) ? 1 : 0;
 			nextA = (nextA || id != GET_ID(buffer + size)) ? 1 : 0;
 
-			printf("%d %d %d\n", prevA, alloc, nextA);
 			if(!prevA && nextA){
 				size += GET_SIZE(buffer - WSIZE);
 				buffer = buffer - GET_SIZE(buffer - WSIZE);
@@ -59,7 +59,7 @@ void copyPackets(void* source, void* dest){
 		int size = GET_SIZE(source);
 
 		PUT(dest, GET(source));
-		PUT(dest + WSIZE, GET(source + WSIZE));
+		memcpy(dest + WSIZE, source + WSIZE, size);
 		PUT(dest + size - WSIZE, GET(source));
 
 		dest += size;
@@ -76,7 +76,7 @@ void printPackets(void* buffer){
 		printf("Memory Location: %p\nSize: %d\nID: %d\nAllocation Flag: %d\nHeader: %d\n",
 			buffer, size, id, alloc, GET(buffer));
 		buffer += WSIZE;
-		printf("Payload: %d\n", GET(buffer));
+		printf("Payload: %s\n", ((char*)buffer));	
 		buffer += size - DSIZE;
 		printf("Tail: %d\n\n", GET(buffer));
 		buffer += WSIZE;	//Next Packet
@@ -88,6 +88,9 @@ int main(int argc, char** argv) {
         printf("You should provide name of the test file.\n");
         return 1;
     }
+	
+	if (access(*(argv + 1), F_OK) != 0) return 0;
+
     void* ram = cse320_init(*(argv + 1));
     void* tmp_buf = cse320_tmp_buffer_init();
     int ret = 0;
@@ -109,15 +112,11 @@ int main(int argc, char** argv) {
 		cursor += size;	//Next Packet
 	} while (id != 0);
 	cursor = ram;
-	//printf("RAM\n------------\n");
-	//printPackets(ram);
 	
 	int f, prevMin = 0, min = INT_MAX;
 	void* currentMin = NULL;
 	for (i = 1; i < 4; i++){
-		//printf("ID: %d\n", i);
 		for (f = 1; f >= 0; f--){
-			//printf("All Flag: %d\n", f);
 			while (prevMin != -1){	
 				do{
 					int size = GET_SIZE(cursor);
@@ -125,16 +124,15 @@ int main(int argc, char** argv) {
 					int alloc = GET_ALLOC(cursor);
 					if (id == i && alloc == f && size < min && size > prevMin){
 						min = size;
-
 						currentMin = cursor;
 					}
 					cursor += size;	//Next Packet
 				} while (id != 0);
-				//printf("Min: %d\nPrevMin: %d\n", min, prevMin);
+				
 				if (prevMin != min && currentMin != NULL){
 					if (cse320_sbrk(min)){
 						PUT(bCursor, GET(currentMin));	//Put head
-						PUT(bCursor + WSIZE, GET(currentMin + WSIZE));	//Put payload
+						memcpy(bCursor + WSIZE, currentMin + WSIZE, min);	//Put payload
 						PUT(bCursor + min - WSIZE, GET(currentMin));	//Put tail
 						bCursor += min;
 						prevMin = min;
@@ -151,18 +149,17 @@ int main(int argc, char** argv) {
 			prevMin = 0;
 		}
 	}
-	//printPackets(ram);
+	
 	if (cse320_sbrk(16)){
 		PUT(bCursor, PACK(16, 0, 0));
 		PUT(bCursor+WSIZE, PACK(16, 0, 0));
 		coalesce(tmp_buf + 128);
-		//printf("BUFFER\n-----------\n");
-		//printPackets(tmp_buf + 128);
+	} else {
+		printf("SBRK_ERROR");
+		exit(errno);
 	}
-	
-	//printf("RAMCOPY\n---------------\n");
 	copyPackets(tmp_buf + 128, ram);
-	//printPackets(ram);
+	
     /*
      * Do not modify code below.
      */
