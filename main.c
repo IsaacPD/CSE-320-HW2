@@ -58,9 +58,7 @@ void copyPackets(void* source, void* dest){
 		id = GET_ID(source);
 		int size = GET_SIZE(source);
 
-		PUT(dest, GET(source));
-		memcpy(dest + WSIZE, source + WSIZE, size);
-		PUT(dest + size - WSIZE, GET(source));
+		memcpy(dest, source, size);
 
 		dest += size;
 		source += size;
@@ -108,11 +106,9 @@ int main(int argc, char** argv) {
 			int alloc = GET_ALLOC(cursor);
 			int id = GET_ID(cursor);
 
-			if(cse320_sbrk(size)){
-				PUT(bCursor, GET(cursor));
-				memcpy(bCursor + WSIZE, cursor + WSIZE, size);
-				PUT(bCursor + size - WSIZE, GET(cursor));
-			} else {
+			if(cse320_sbrk(size))
+				memcpy(bCursor, cursor, size);
+			else {
 				printf("SBRK_ERROR");
 				exit(errno);
 			}
@@ -120,7 +116,7 @@ int main(int argc, char** argv) {
 			bCursor += size;
 			i += size;
 		} else {
-			i+= WSIZE;
+			i+=WSIZE;
 			cursor+=WSIZE;
 		}
 	}
@@ -151,9 +147,7 @@ int main(int argc, char** argv) {
 				
 				if (prevMin != min && currentMin != NULL){
 					if (cse320_sbrk(min)){
-						PUT(bCursor, GET(currentMin));	//Put head
-						memcpy(bCursor + WSIZE, currentMin + WSIZE, min);	//Put payload
-						PUT(bCursor + min - WSIZE, GET(currentMin));	//Put tail
+						memcpy(bCursor, currentMin, min);
 						bCursor += min;
 						prevMin = min;
 					} else {
