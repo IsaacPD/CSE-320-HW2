@@ -100,18 +100,38 @@ int main(int argc, char** argv) {
      */
 	void* cursor = ram;
 	void* bCursor = cse320_sbrk(0);
-	int i, id;
-	do{
-		int size = GET_SIZE(cursor);
-		if (size == 0){
-			PUT(cursor, PACK(16, 0, 0));
-			PUT(cursor+WSIZE, PACK(16, 0, 0));
-			size = GET_SIZE(cursor);
+	int i = 0, id;
+
+	while(i < 1024){
+		if (GET_SIZE(cursor) != 0){
+			int size = GET_SIZE(cursor);
+			int alloc = GET_ALLOC(cursor);
+			int id = GET_ID(cursor);
+
+			if(cse320_sbrk(size)){
+				PUT(bCursor, GET(cursor));
+				memcpy(bCursor + WSIZE, cursor + WSIZE, size);
+				PUT(bCursor + size - WSIZE, GET(cursor));
+			} else {
+				printf("SBRK_ERROR");
+				exit(errno);
+			}
+			cursor += size;
+			bCursor += size;
+			i += size;
+		} else {
+			i+= WSIZE;
+			cursor+=WSIZE;
 		}
-		id = GET_ID(cursor);
-		cursor += size;	//Next Packet
-	} while (id != 0);
-	cursor = ram;
+	}
+
+	if (cse320_sbrk(DSIZE)){
+		PUT(bCursor, PACK(16, 0, 0));
+		PUT(bCursor + WSIZE, PACK(16, 0, 0));
+	}
+	
+	bCursor = ram;
+	cursor = tmp_buf + 128;
 	
 	int f, prevMin = 0, min = INT_MAX;
 	void* currentMin = NULL;
@@ -142,7 +162,7 @@ int main(int argc, char** argv) {
 					}
 				}
 				else prevMin = -1;
-				cursor = ram;
+				cursor = tmp_buf + 128;
 				min = INT_MAX;
 				currentMin = NULL;
 			}
@@ -150,15 +170,9 @@ int main(int argc, char** argv) {
 		}
 	}
 	
-	if (cse320_sbrk(16)){
-		PUT(bCursor, PACK(16, 0, 0));
-		PUT(bCursor+WSIZE, PACK(16, 0, 0));
-		coalesce(tmp_buf + 128);
-	} else {
-		printf("SBRK_ERROR");
-		exit(errno);
-	}
-	copyPackets(tmp_buf + 128, ram);
+	PUT(bCursor, PACK(16, 0, 0));
+	PUT(bCursor + WSIZE, PACK(16, 0, 0));
+	coalesce(ram);
 	
     /*
      * Do not modify code below.
