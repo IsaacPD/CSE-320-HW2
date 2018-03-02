@@ -81,6 +81,58 @@ void printPackets(void* buffer){
 	} while (id != 0);
 }
 
+void superfree(void* buffer){
+	int id, totalSize = 0;
+	do {
+		id = GET_ID(buffer);
+		int size = GET_SIZE(buffer);
+		int flag = GET_ALLOC(buffer);
+		totalSize += size;
+
+		if (flag == 0) {
+			PUT(buffer, PACK(size, 0, 0));
+			PUT(buffer + size - WSIZE, PACK(size, 0, 0));
+		}
+		buffer += size;
+	} while (id != 0);
+	
+	int size;
+	buffer -= totalSize;
+	int first = 1;
+	for (size = GET_SIZE(buffer); size < totalSize; size += GET_SIZE(buffer)){
+		id = GET_ID(buffer);
+		int alloc = GET_ALLOC(buffer);
+		if (alloc == 0 && id == 0){
+			int prevA = first ? first : GET_ALLOC(buffer - WSIZE);
+			int nextA = GET_ALLOC(buffer + size);
+
+			prevA = (prevA || id != GET_ID(buffer - WSIZE)) ? 1 : 0;
+			nextA = (nextA || id != GET_ID(buffer + size)) ? 1 : 0;
+
+			if(!prevA && nextA){
+				size += GET_SIZE(buffer - WSIZE);
+				buffer = buffer - GET_SIZE(buffer - WSIZE);
+				PUT(buffer, PACK(size, 0, id));
+				PUT(buffer + size - WSIZE, PACK(size, 0, id));
+			} 
+			else if (prevA && !nextA){
+				size += GET_SIZE(buffer + size);
+				PUT(buffer, PACK(size, 0, id));
+				PUT(buffer + size - WSIZE, PACK(size, 0, id));
+			}
+			else if (!prevA && !nextA){
+				size += GET_SIZE(buffer + size);
+				size += GET_SIZE(buffer - WSIZE);
+				buffer = buffer - GET_SIZE(buffer - WSIZE);
+				PUT(buffer, PACK(size, 0, id));
+				PUT(buffer + size - WSIZE, PACK(size, 0, id));
+			}
+		}
+		buffer += size;
+		first = 0;
+	}
+}
+
 int main(int argc, char** argv) {
     if (*(argv + 1) == NULL) {
         printf("You should provide name of the test file.\n");
