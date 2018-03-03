@@ -15,18 +15,18 @@
 #define GET_ID(p) ((GET(p) & 0x6) >> 1)
 
 void coalesce(void* buffer){
-	int id, first = 1;
+	int id, first = 1, size;
 	do{
 		id = GET_ID(buffer);
-		int size = GET_SIZE(buffer);
+		size = GET_SIZE(buffer);
 		int alloc = GET_ALLOC(buffer);
 
-		if (alloc == 0 && id != 0){
+		if (alloc == 0 &&  size != 16){
 			int prevA = first ? first : GET_ALLOC(buffer - WSIZE);
 			int nextA = GET_ALLOC(buffer + size);
 
 			prevA = (prevA || id != GET_ID(buffer - WSIZE)) ? 1 : 0;
-			nextA = (nextA || id != GET_ID(buffer + size)) ? 1 : 0;
+			nextA = (nextA || id != GET_ID(buffer + size) || GET_SIZE(buffer + size) == 16) ? 1 : 0;
 
 			if(!prevA && nextA){
 				size += GET_SIZE(buffer - WSIZE);
@@ -49,7 +49,7 @@ void coalesce(void* buffer){
 		}
 		buffer += size;
 		first = 0;
-	} while (id != 0);
+	} while (id != 0 || size != 16);
 }
 
 void copyPackets(void* source, void* dest){
@@ -66,9 +66,9 @@ void copyPackets(void* source, void* dest){
 }
 
 void printPackets(void* buffer){
-	int i, id;
+	int i, id, size;
 	do{
-		int size = GET_SIZE(buffer);
+		size = GET_SIZE(buffer);
 		id = GET_ID(buffer);
 		int alloc = GET_ALLOC(buffer);
 		printf("Memory Location: %p\nSize: %d\nID: %d\nAllocation Flag: %d\nHeader: %d\n",
@@ -78,7 +78,7 @@ void printPackets(void* buffer){
 		buffer += size - DSIZE;
 		printf("Tail: %d\n\n", GET(buffer));
 		buffer += WSIZE;	//Next Packet
-	} while (id != 0);
+	} while (id != 0 || size != 16);
 }
 
 void superfree(void* buffer){
@@ -96,41 +96,8 @@ void superfree(void* buffer){
 		buffer += size;
 	} while (id != 0);
 	
-	int size;
 	buffer -= totalSize;
-	int first = 1;
-	for (size = GET_SIZE(buffer); size < totalSize; size += GET_SIZE(buffer)){
-		id = GET_ID(buffer);
-		int alloc = GET_ALLOC(buffer);
-		if (alloc == 0 && id == 0){
-			int prevA = first ? first : GET_ALLOC(buffer - WSIZE);
-			int nextA = GET_ALLOC(buffer + size);
-
-			prevA = (prevA || id != GET_ID(buffer - WSIZE)) ? 1 : 0;
-			nextA = (nextA || id != GET_ID(buffer + size)) ? 1 : 0;
-
-			if(!prevA && nextA){
-				size += GET_SIZE(buffer - WSIZE);
-				buffer = buffer - GET_SIZE(buffer - WSIZE);
-				PUT(buffer, PACK(size, 0, id));
-				PUT(buffer + size - WSIZE, PACK(size, 0, id));
-			} 
-			else if (prevA && !nextA){
-				size += GET_SIZE(buffer + size);
-				PUT(buffer, PACK(size, 0, id));
-				PUT(buffer + size - WSIZE, PACK(size, 0, id));
-			}
-			else if (!prevA && !nextA){
-				size += GET_SIZE(buffer + size);
-				size += GET_SIZE(buffer - WSIZE);
-				buffer = buffer - GET_SIZE(buffer - WSIZE);
-				PUT(buffer, PACK(size, 0, id));
-				PUT(buffer + size - WSIZE, PACK(size, 0, id));
-			}
-		}
-		buffer += size;
-		first = 0;
-	}
+	coalesce(buffer);
 }
 
 int main(int argc, char** argv) {
@@ -219,6 +186,10 @@ int main(int argc, char** argv) {
 	PUT(bCursor, PACK(16, 0, 0));
 	PUT(bCursor + WSIZE, PACK(16, 0, 0));
 	coalesce(ram);
+
+	//superfree(ram);
+	//printf("\nAfter Coalesce\n----------\n");
+	//printPackets(ram);
 	
     /*
      * Do not modify code below.
