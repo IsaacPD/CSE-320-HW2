@@ -52,19 +52,6 @@ void coalesce(void* buffer){
 	} while (id != 0 || size != 16);
 }
 
-void copyPackets(void* source, void* dest){
-	int id;
-	do{
-		id = GET_ID(source);
-		int size = GET_SIZE(source);
-
-		memcpy(dest, source, size);
-
-		dest += size;
-		source += size;
-	} while (id != 0);
-}
-
 void printPackets(void* buffer){
 	int i, id, size;
 	do{
@@ -111,6 +98,12 @@ int main(int argc, char** argv) {
     void* ram = cse320_init(*(argv + 1));
     void* tmp_buf = cse320_tmp_buffer_init();
     int ret = 0;
+
+	if (!ram) {
+		printf("INIT_ERROR\n");
+		exit(errno);
+	}
+
     /*
      * You code goes below. Do not modify provided parts
      * of the code.
@@ -186,10 +179,6 @@ int main(int argc, char** argv) {
 	PUT(bCursor, PACK(16, 0, 0));
 	PUT(bCursor + WSIZE, PACK(16, 0, 0));
 	coalesce(ram);
-
-	//superfree(ram);
-	//printf("\nAfter Coalesce\n----------\n");
-	//printPackets(ram);
 	
     /*
      * Do not modify code below.
