@@ -93,7 +93,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 	
-	if (access(*(argv + 1), F_OK) != 0) return 0;
+	if (access(*(argv + 1), F_OK) != 0) {
+		printf("FILE DOES NOT EXIST\n");
+		return 0;
+	}
 
     void* ram = cse320_init(*(argv + 1));
     void* tmp_buf = cse320_tmp_buffer_init();
@@ -110,14 +113,20 @@ int main(int argc, char** argv) {
      */
 	void* cursor = ram;
 	void* bCursor = cse320_sbrk(0);
-	int i = 0, id;
+	int i = 0, id, packets = 0;
 
 	while(i < 1024){
 		if (GET_SIZE(cursor) != 0){
 			int size = GET_SIZE(cursor);
 			int alloc = GET_ALLOC(cursor);
 			int id = GET_ID(cursor);
+			int header = GET(cursor);
+			int footer = GET(cursor + size);
 
+			if(header != footer){
+				printf("HEADER AND FOOTER OF PACKET\n");
+				exit(errno);
+			}
 			if(cse320_sbrk(size))
 				memcpy(bCursor, cursor, size);
 			else {
@@ -127,10 +136,16 @@ int main(int argc, char** argv) {
 			cursor += size;
 			bCursor += size;
 			i += size;
+			packets++;
 		} else {
 			i+=WSIZE;
 			cursor+=WSIZE;
 		}
+	}
+
+	if (packets == 0){
+		printf("INVALID NUMBER OF PACKETS\n");
+		return -1;
 	}
 
 	if (cse320_sbrk(DSIZE)){
