@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
 			int alloc = GET_ALLOC(cursor);
 			int id = GET_ID(cursor);
 			int header = GET(cursor);
-			int footer = GET(cursor + size);
+			int footer = GET(cursor + size - WSIZE);
 
 			if(header != footer){
 				printf("HEADER AND FOOTER OF PACKET\n");
